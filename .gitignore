@@ -2,3 +2,5 @@
 /target/
 /bin/
 Cargo.lock
+*.yooz
+backup.rs
