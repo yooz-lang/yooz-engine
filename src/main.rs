@@ -24,7 +24,6 @@ fn main() {
                 .split_whitespace()
                 .map(|s| s.to_string())
                 .collect();
-            print!("{:?}", parts);
             let file_path = format!("{}.yooz", parts[0]);
             insert_data(file_path, command, parts);
         }
@@ -60,14 +59,11 @@ fn parse_query(query: &String) -> Vec<String> {
 
 fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
     let mut contents = fs::read_to_string(&file_path).unwrap();
-
     let layer: usize = parts[2].parse().expect("Layer must be a positive integer");
-
     if layer == 0 {
         println!("Error: Layer 0 is not valid.");
         return;
     }
-
     fn find_parent_layer(contents: &str, parent_layer: usize) -> Option<usize> {
         let mut depth = 0;
         for (i, c) in contents.chars().enumerate() {
@@ -75,7 +71,7 @@ fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
                 depth += 1;
             } else if c == ')' {
                 if depth == parent_layer {
-                    println!("Found parent layer at {} and some {:?}", i,Some(i));
+                    println!("Found parent layer at {} and some {:?}", i, Some(i));
                     return Some(i);
                 }
                 depth -= 1;
@@ -85,18 +81,26 @@ fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
     }
 
     if layer == 1 {
-        let new_data = format!("+{}\n-{}\n", parts[1], &command[3]);
-        contents.insert_str(contents.find('(').unwrap() + 1, &new_data);
+        if let Some(po) = contents.find('(') {
+            if contents.contains(&format!("+{}",parts[1].trim())) {
+                println!("you cant insert data with same key in the same layer");
+            } else {
+                let new_data = format!("\n+{}\n-{}\n", parts[1], command[3]);
+                contents.insert_str(po + 1, &new_data);
+            }
+        }
     } else {
         if let Some(parent_pos) = find_parent_layer(&contents, layer - 1) {
-            print!("pos {}",parent_pos);
+            println!("pos {}", parent_pos);
             if let Some(po) = contents[..parent_pos].rfind(")") {
-                print!("if");
-                let new_layer = format!("\n+{}\n-{}\n", parts[1], &command[3]);
-                contents.insert_str(po, &new_layer);
+                if let Some(_) = contents.find(parts[1].as_str()) {
+                    println!("you cant insert data with same key in the same layer");
+                } else {
+                    let new_layer = format!("\n+{}\n-{}\n", parts[1], command[3]);
+                    contents.insert_str(po, &new_layer);
+                }
             } else {
-                print!("else");
-                let new_layer = format!("\n(\n+{}\n-{}\n)\n", parts[1], &command[3]);
+                let new_layer = format!("(\n+{}\n-{}\n)\n", parts[1], command[3]);
                 contents.insert_str(parent_pos, &new_layer);
             }
         } else {
@@ -107,7 +111,6 @@ fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
 
     let mut file = File::create(&file_path).expect("create failed");
     file.write_all(contents.as_bytes()).expect("write failed");
-
 }
 
 fn find_data(file_path: String, search: String) -> String {
