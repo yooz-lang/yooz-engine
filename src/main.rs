@@ -36,11 +36,13 @@ fn main() {
                 .map(|s| s.to_string())
                 .collect();
             let file_path = format!("{}.yooz", parts[0]);
-            let value = find_data(file_path, parts[1].clone());
-            print!("{}", value);
+            let _value = find_data(file_path, parts[1].clone());
         }
         _ => {
-            eprintln!("Unknown query: {:?}. Please use 'Create' , 'ADD' or 'FIND'.", &args[1..]);
+            eprintln!(
+                "Unknown query: {:?}. Please use 'Create' , 'ADD' or 'FIND'.",
+                &args[1..]
+            );
         }
     }
 }
@@ -55,31 +57,11 @@ fn parse_query(query: &String) -> Vec<String> {
         .map(|s| s.to_string())
         .collect()
 }
-// fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
-//     let mut contents =
-//         fs::read_to_string(&file_path).expect("Should have been able to read the file");
-//     if let Some(pos) = contents.find(')') {
-//         let new_data = format!("+{}\n-{}\n\n", parts[1], &command[3]);
-        
-//         contents.insert_str(pos, &new_data);
-//     } else {
-//         println!("No ')' found");
-//         return;
-//     }
-
-//     print!("{}", contents);
-//     let mut file = File::create(&file_path).expect("create failed");
-//     let _ = file.write_all(contents.as_bytes());
-// }
-
 
 fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
-    let mut contents =
-        fs::read_to_string(&file_path).unwrap_or_else(|_| "(\n)\n".to_string());  
+    let mut contents = fs::read_to_string(&file_path).unwrap();
 
-    let layer: usize = parts[2]
-        .parse()
-        .expect("Layer must be a positive integer");
+    let layer: usize = parts[2].parse().expect("Layer must be a positive integer");
 
     if layer == 0 {
         println!("Error: Layer 0 is not valid.");
@@ -93,6 +75,7 @@ fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
                 depth += 1;
             } else if c == ')' {
                 if depth == parent_layer {
+                    println!("Found parent layer at {} and some {:?}", i,Some(i));
                     return Some(i);
                 }
                 depth -= 1;
@@ -106,22 +89,25 @@ fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
         contents.insert_str(contents.find('(').unwrap() + 1, &new_data);
     } else {
         if let Some(parent_pos) = find_parent_layer(&contents, layer - 1) {
-            let new_layer = format!("\n(\n+{}\n-{}\n)\n", parts[1], &command[3]);
-            contents.insert_str(parent_pos, &new_layer);
+            print!("pos {}",parent_pos);
+            if let Some(po) = contents[..parent_pos].rfind(")") {
+                print!("if");
+                let new_layer = format!("\n+{}\n-{}\n", parts[1], &command[3]);
+                contents.insert_str(po, &new_layer);
+            } else {
+                print!("else");
+                let new_layer = format!("\n(\n+{}\n-{}\n)\n", parts[1], &command[3]);
+                contents.insert_str(parent_pos, &new_layer);
+            }
         } else {
-            println!(
-                "Error: layer {} does not exist.",
-                layer - 1,
-            );
+            println!("Error: layer {} does not exist.", layer - 1,);
             return;
         }
     }
 
     let mut file = File::create(&file_path).expect("create failed");
-    file.write_all(contents.as_bytes())
-        .expect("write failed");
+    file.write_all(contents.as_bytes()).expect("write failed");
 
-    println!("{}", contents);
 }
 
 fn find_data(file_path: String, search: String) -> String {
