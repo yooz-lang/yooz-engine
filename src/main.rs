@@ -14,7 +14,7 @@ fn main() {
                 Ok(file) => file,
             };
             if let Err(why) = write_to_db(&mut file) {
-                panic!("couldn't write to file: {}", why);
+                panic!("couldn't insert data to : {}.yooz", why);
             }
         }
         cmd if cmd.starts_with("add to") || cmd.starts_with("ADD TO") => {
@@ -36,7 +36,7 @@ fn main() {
                 .collect();
             let file_path = format!("{}.yooz", parts[0]);
             let value = find_data(file_path, parts[1].clone(), parts[2].parse().unwrap());
-            println!("{}", value);
+            println!("{:?}", value);
         }
         cmd if cmd.starts_with("remove from") || cmd.starts_with("REMOVE FROM") => {
             let parts: Vec<String> = command[2]
@@ -46,7 +46,7 @@ fn main() {
                 .map(|s| s.to_string())
                 .collect();
             let file_path = format!("{}.yooz", parts[0]);
-            remove_data(file_path, parts[1].clone())
+            remove_data(file_path, parts[1].clone(),parts[2].parse().unwrap())
         }
         _ => {
             eprintln!("Unknown query: {}.", &args[1..].join(" "));
@@ -65,7 +65,32 @@ fn parse_query(query: &String) -> Vec<String> {
         .collect()
 }
 
-fn remove_data(_file_path: String, _key: String) {}
+fn remove_data(file_path: String, key: String,layer:usize) {
+    let contents = fs::read_to_string(&file_path).expect("Should have been able to read the file");
+    let (_, position) = find_data(file_path.clone(), key.clone(), layer);
+    print!("{:?}", position);
+    if position == usize::MAX {
+        println!("Key not found in layer {}",key);
+        return;
+    }    
+    let mut end = position-1;
+    let mut newline_count = 0;
+     for (i, c) in contents[position-1..].chars().enumerate() {
+         if c == '\n' {
+             newline_count += 1;
+         }
+         if newline_count == 2 {
+             println!("{}",i);
+             end = position + i;
+             break;
+         }
+     }
+    let mut updated_contents = contents.clone();
+    updated_contents.replace_range(position-1..=end, "");
+
+    fs::write(&file_path, updated_contents).expect("Unable to write file");
+    println!("Key-value pair deleted successfully");
+}
 fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
     let mut contents = fs::read_to_string(&file_path).unwrap();
     let layer: usize = parts[2].parse().expect("Layer must be a positive integer");
@@ -98,7 +123,6 @@ fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
         }
     } else {
         if let Some(parent_pos) = find_parent_layer(&contents, layer - 1) {
-            println!("pos {}", parent_pos);
             if let Some(po) = contents[..parent_pos].rfind(")") {
                 if let Some(_) = contents[..po].rfind("(") {
                     if contents.contains(&format!("+{}", parts[1].trim())) {
@@ -109,11 +133,11 @@ fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
                     }
                 }
             } else {
-                let new_layer = format!("(\n+{}\n-{}\n)\n", parts[1], command[3]);
+                let new_layer = format!("\n(\n\n+{}\n-{}\n\n)\n", parts[1], command[3]);
                 contents.insert_str(parent_pos, &new_layer);
             }
         } else {
-            println!("Error: layer {} does not exist.", layer - 1,);
+            println!("Error: layer {} does not exist.", layer - 1);
             return;
         }
     }
@@ -126,25 +150,10 @@ fn _print_char_positions(contents: &str) {
         println!("Index: {}, Character: '{}'", index, character);
     }
 }
-fn _find_layer(contents: &str, layer: usize) -> Option<usize> {
-    let mut depth = 0;
-    for (i, c) in contents.chars().enumerate() {
-        if c == '(' {
-            depth += 1;
-            if depth == layer {
-                println!("{}", i);
-                return Some(i);
-            }
-        } else if c == ')' {
-            depth -= 1
-        }
-    }
-    None
-}
 
-fn find_data(file_path: String, search: String, layer: usize) -> String {
-    println!("layer {} search {}", layer, search);
+fn find_data(file_path: String, search: String, layer: usize) -> (String,usize) {
     let contents = fs::read_to_string(&file_path).expect("Should have been able to read the file");
+    //println!("{:?}",print_char_positions(&contents));
 
     let mut depth = 0;
     let mut i = 0;
@@ -170,8 +179,7 @@ fn find_data(file_path: String, search: String, layer: usize) -> String {
                             .chars()
                             .take_while(|c| !c.is_whitespace() && *c != ')')
                             .collect();
-
-                        return value; 
+                        return (value,n_pos_offset); 
                     } else {
                         println!("Value of {} not found", search);
                     }
@@ -182,5 +190,5 @@ fn find_data(file_path: String, search: String, layer: usize) -> String {
         i += 1;
     }
 
-    format!("{} does not exist in layer {}", search,layer).to_string()
+    (format!("{} does not exist in layer {}", search,layer).to_string(), usize::MAX)
 }
