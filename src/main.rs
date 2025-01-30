@@ -17,7 +17,7 @@ fn main() {
                 panic!("couldn't write to file: {}", why);
             }
         }
-        cmd if cmd.starts_with("ADD") => {
+        cmd if cmd.starts_with("add to") || cmd.starts_with("ADD TO") => {
             let parts: Vec<String> = command[2]
                 .trim()
                 .replace(&['(', ')'][..], " ")
@@ -27,7 +27,7 @@ fn main() {
             let file_path = format!("{}.yooz", parts[0]);
             insert_data(file_path, command, parts);
         }
-        cmd if cmd.starts_with("FIND") => {
+        cmd if cmd.starts_with("find in") || cmd.starts_with("FIND IN") => {
             let parts: Vec<String> = command[2]
                 .trim()
                 .replace(&['(', ')'][..], " ")
@@ -35,13 +35,21 @@ fn main() {
                 .map(|s| s.to_string())
                 .collect();
             let file_path = format!("{}.yooz", parts[0]);
-            let _value = find_data(file_path, parts[1].clone());
+            let value = find_data(file_path, parts[1].clone(), parts[2].parse().unwrap());
+            println!("{}", value);
+        }
+        cmd if cmd.starts_with("remove from") || cmd.starts_with("REMOVE FROM") => {
+            let parts: Vec<String> = command[2]
+                .trim()
+                .replace(&['(', ')'][..], " ")
+                .split_whitespace()
+                .map(|s| s.to_string())
+                .collect();
+            let file_path = format!("{}.yooz", parts[0]);
+            remove_data(file_path, parts[1].clone())
         }
         _ => {
-            eprintln!(
-                "Unknown query: {:?}. Please use 'Create' , 'ADD' or 'FIND'.",
-                &args[1..]
-            );
+            eprintln!("Unknown query: {}.", &args[1..].join(" "));
         }
     }
 }
@@ -57,6 +65,7 @@ fn parse_query(query: &String) -> Vec<String> {
         .collect()
 }
 
+fn remove_data(_file_path: String, _key: String) {}
 fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
     let mut contents = fs::read_to_string(&file_path).unwrap();
     let layer: usize = parts[2].parse().expect("Layer must be a positive integer");
@@ -71,7 +80,6 @@ fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
                 depth += 1;
             } else if c == ')' {
                 if depth == parent_layer {
-                    println!("Found parent layer at {} and some {:?}", i, Some(i));
                     return Some(i);
                 }
                 depth -= 1;
@@ -79,10 +87,9 @@ fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
         }
         None
     }
-
     if layer == 1 {
         if let Some(po) = contents.find('(') {
-            if contents.contains(&format!("+{}",parts[1].trim())) {
+            if contents.contains(&format!("+{}", parts[1].trim())) {
                 println!("you cant insert data with same key in the same layer");
             } else {
                 let new_data = format!("\n+{}\n-{}\n", parts[1], command[3]);
@@ -93,11 +100,13 @@ fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
         if let Some(parent_pos) = find_parent_layer(&contents, layer - 1) {
             println!("pos {}", parent_pos);
             if let Some(po) = contents[..parent_pos].rfind(")") {
-                if let Some(_) = contents.find(parts[1].as_str()) {
-                    println!("you cant insert data with same key in the same layer");
-                } else {
-                    let new_layer = format!("\n+{}\n-{}\n", parts[1], command[3]);
-                    contents.insert_str(po, &new_layer);
+                if let Some(_) = contents[..po].rfind("(") {
+                    if contents.contains(&format!("+{}", parts[1].trim())) {
+                        println!("you cant insert data with same key in the same layer");
+                    } else {
+                        let new_layer = format!("\n+{}\n-{}\n", parts[1], command[3]);
+                        contents.insert_str(po, &new_layer);
+                    }
                 }
             } else {
                 let new_layer = format!("(\n+{}\n-{}\n)\n", parts[1], command[3]);
@@ -108,26 +117,70 @@ fn insert_data(file_path: String, command: Vec<String>, parts: Vec<String>) {
             return;
         }
     }
-
     let mut file = File::create(&file_path).expect("create failed");
     file.write_all(contents.as_bytes()).expect("write failed");
 }
 
-fn find_data(file_path: String, search: String) -> String {
-    let contents = fs::read_to_string(&file_path).expect("Should have been able to read the file");
-    if let Some(n_pos) = contents.find(&search) {
-        let after_n = &contents[n_pos..];
-        if let Some(dash_pos) = after_n.find('-') {
-            let after_dash = &after_n[dash_pos + 1..];
-            let value: String = after_dash
-                .chars()
-                .take_while(|c| !c.is_whitespace())
-                .collect();
-            return value;
-        } else {
-            "No '-' found after 'n'".to_string()
-        }
-    } else {
-        "No 'n' found in the content".to_string()
+fn _print_char_positions(contents: &str) {
+    for (index, character) in contents.chars().enumerate() {
+        println!("Index: {}, Character: '{}'", index, character);
     }
+}
+fn _find_layer(contents: &str, layer: usize) -> Option<usize> {
+    let mut depth = 0;
+    for (i, c) in contents.chars().enumerate() {
+        if c == '(' {
+            depth += 1;
+            if depth == layer {
+                println!("{}", i);
+                return Some(i);
+            }
+        } else if c == ')' {
+            depth -= 1
+        }
+    }
+    None
+}
+
+fn find_data(file_path: String, search: String, layer: usize) -> String {
+    println!("layer {} search {}", layer, search);
+    let contents = fs::read_to_string(&file_path).expect("Should have been able to read the file");
+
+    let mut depth = 0;
+    let mut i = 0;
+
+    while i < contents.len() {
+        let c = contents.chars().nth(i).unwrap();
+
+        match c {
+            '(' => {
+                depth += 1;
+            }
+            ')' => {
+                depth -= 1;
+            }
+            _ => {
+                if depth == layer && contents[i..].starts_with(&search) {
+                    let n_pos_offset = i;
+                    let after_n = &contents[n_pos_offset..];
+
+                    if let Some(dash_pos) = after_n.find('-') {
+                        let after_dash = &after_n[dash_pos + 1..];
+                        let value: String = after_dash
+                            .chars()
+                            .take_while(|c| !c.is_whitespace() && *c != ')')
+                            .collect();
+
+                        return value; 
+                    } else {
+                        println!("Value of {} not found", search);
+                    }
+                }
+            }
+        }
+
+        i += 1;
+    }
+
+    format!("{} does not exist in layer {}", search,layer).to_string()
 }
