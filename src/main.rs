@@ -6,9 +6,18 @@ use std::{
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+    if args.len() == 1 {
+        print_help();
+        return;
+    }
     let command: Vec<String> = parse_query(&args[1]);
     match args[1].as_str() {
-        "Create" => {
+        "help" | "-h" | "--help" => print_help(),
+        "--version" | "-v" => {
+            println!("yooz version 0.1.0");
+            return;
+        }
+        "create" | "CREATE" => {
             let mut file = match fs::File::create(format!("{}.yooz", &args[2])) {
                 Err(why) => panic!("couldn't create db: {}", why),
                 Ok(file) => file,
@@ -16,6 +25,7 @@ fn main() {
             if let Err(why) = write_to_db(&mut file) {
                 panic!("couldn't insert data to : {}.yooz", why);
             }
+            println!("{} created successfully", args[2])
         }
         cmd if cmd.starts_with("add to") || cmd.starts_with("ADD TO") => {
             let parts: Vec<String> = command[2]
@@ -33,33 +43,18 @@ fn main() {
             );
         }
         cmd if cmd.starts_with("find in") || cmd.starts_with("FIND IN") => {
-            let parts: Vec<String> = command[2]
-                .trim()
-                .replace(&['(', ')'][..], " ")
-                .split_whitespace()
-                .map(|s| s.to_string())
-                .collect();
+            let parts: Vec<String> = key_layer_value_parts(&command[2]);
             let file_path = format!("{}.yooz", parts[0]);
             let value = find_data(file_path, parts[1].clone(), parts[2].parse().unwrap());
             println!("{} is {:?}", parts[1], value.0);
         }
         cmd if cmd.starts_with("remove from") || cmd.starts_with("REMOVE FROM") => {
-            let parts: Vec<String> = command[2]
-                .trim()
-                .replace(&['(', ')'][..], " ")
-                .split_whitespace()
-                .map(|s| s.to_string())
-                .collect();
+            let parts: Vec<String> = key_layer_value_parts(&command[2]);
             let file_path = format!("{}.yooz", parts[0]);
             remove_data(file_path, parts[1].clone(), parts[2].parse().unwrap())
         }
         cmd if cmd.starts_with("change from") || cmd.starts_with("CHANGE from") => {
-            let parts: Vec<String> = command[2]
-                .trim()
-                .replace(&['(', ')'][..], " ")
-                .split_whitespace()
-                .map(|s| s.to_string())
-                .collect();
+            let parts: Vec<String> = key_layer_value_parts(&command[2]);
             let file_path = format!("{}.yooz", parts[0]);
             update_data(
                 file_path,
@@ -76,6 +71,14 @@ fn main() {
 fn write_to_db(file_name: &mut fs::File) -> std::io::Result<()> {
     writeln!(file_name, "(\n\n\n)\n")?;
     Ok(())
+}
+fn key_layer_value_parts(query: &String) -> Vec<String> {
+    query
+        .trim()
+        .replace(&['(', ')'][..], " ")
+        .split_whitespace()
+        .map(|s| s.to_string())
+        .collect()
 }
 fn parse_query(query: &String) -> Vec<String> {
     query
@@ -154,7 +157,11 @@ fn insert_data(file_path: String, key: String, layer: usize, value: String) {
                 contents.insert_str(parent_pos, &new_layer);
             }
         } else {
-            println!("Error: layer {} does not exist.", layer - 1);
+            println!(
+                "you cant insert in layer {} when layer {} does not exist",
+                layer,
+                layer - 1
+            );
             return;
         }
     }
@@ -166,7 +173,7 @@ fn update_data(file_path: String, key: String, layer: usize, new_value: String) 
     let contents = fs::read_to_string(&file_path).expect("Should have been able to read the file");
     let (_, position) = find_data(file_path.clone(), key.clone(), layer);
     if position == usize::MAX {
-        println!("Key not found in layer {}", key);
+        println!("{} not found in layer {}", key, layer);
         return;
     }
     let mut end = position;
@@ -181,7 +188,6 @@ fn update_data(file_path: String, key: String, layer: usize, new_value: String) 
         }
     }
     let mut updated_contents = contents.clone();
-
     if let Some(dash_pos) = contents[position..end].find('-') {
         let value_start = position + dash_pos + 1;
         let value_end = contents[value_start..]
@@ -204,7 +210,6 @@ fn find_data(file_path: String, search: String, layer: usize) -> (String, usize)
     let mut i = 0;
     while i < contents.len() {
         let c = contents.chars().nth(i).unwrap();
-
         match c {
             '(' => {
                 depth += 1;
@@ -218,7 +223,6 @@ fn find_data(file_path: String, search: String, layer: usize) -> (String, usize)
                     let after_n = &contents[n_pos_offset..];
                     if let Some(dash_pos) = after_n.find('-') {
                         let after_dash = &after_n[dash_pos + 1..];
-                        println!("find {} dash {}", after_dash, dash_pos);
                         let value: String = after_dash
                             .chars()
                             .take_while(|c| !c.is_whitespace() && *c != ')')
@@ -230,11 +234,37 @@ fn find_data(file_path: String, search: String, layer: usize) -> (String, usize)
                 }
             }
         }
-
         i += 1;
     }
     (
         format!("{} does not exist in layer {}", search, layer).to_string(),
         usize::MAX,
     )
+}
+
+fn print_help() {
+    println!(
+        r#"
+Yooz Database Engine 
+
+Usage:
+    yooz "<command>"
+
+Commands:
+    CREATE     Create a database. Usage: CREATE dbname
+    ADD     Add data to the database. Usage: "ADD TO dbname(key(layer)) value"
+    FIND     Find data in the database. Usage: "FIND IN dbname(key(layer))"
+    CHANGE     Change specific data from the database. Usage: "CHANGE FROM dbname(key(layer)) new-value"
+    REMOVE     Remove specific data from the database. Usage: "REMOVE FROM dbname(key(layer))"
+    help    Show this help message.
+
+Examples:
+    yooz CREATE mydb
+    yooz "ADD To mydb(name(1)) mohammad"
+    yooz "FIND IN mydb(name(1))"
+
+
+For more details, you can check the documentation in http://yooz.run/.
+"#
+    );
 }

@@ -1,7 +1,30 @@
 [package]
-name = "yooz-engine"
+name = "yooz"
 version = "0.1.0"
 edition = "2021"
-[dependencies]
-clap = { version = "4.5.26", features = ["derive"] }
-regex= "1"
+authors = ["Mohammad hasan farrahi <mohammad.hfarrahi@gmail.com>", "Yooz-lang https://github.com/yooz-lang"]
+homepage = "http://yooz.run/"
+repository = "https://github.com/yooz-lang/yooz-engine"
+description = "A CLI-based multi-layered database engine."
+license = "MIT"
+
+[package.metadata.bundle]
+name = "yooz"
+identifier = "com.yooz.yooz-engine"
+targets = ["deb", "rpm", "msi"]
+
+[package.metadata.bundle.linux]
+category = "Utility" 
+maintainer = "Mohammad hasan farrahi <mohammad.hfarrahi@gmail.com>" 
+depends = ["libc6"] 
+
+[package.metadata.bundle.windows]
+wix = true
+[package.metadata.rpm]
+package = "yooz"
+
+[package.metadata.rpm.cargo]
+buildflags = ["--release"]
+
+[package.metadata.rpm.targets]
+yooz = { path = "/usr/bin/yooz" }
