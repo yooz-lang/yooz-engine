@@ -51,14 +51,17 @@ yooz --version
    ./install-yooz-rpm.sh
    ```
 3. Verify the installation:
+
 ```bash
 yooz --version
 ```
 
 ### **3. Installing on Windows**
 
-1. Run the install-windows.ps1 as administrator
-2. Run the following command to verify the installation:
+1. Execute the `.msi` installer file.
+2. The `yooz`  will be automatically added to your `PATH`.
+3. Run the following command to verify the installation:
+
 ```bash
 yooz --version
 ```
@@ -79,8 +82,7 @@ yooz --version
 
 ## **Contact Us**
 
-* **Developers:**
-  Mohammad Hasan Farrahi ([mohammad.hfarrahi@gmail.com]())
-  Yooz-lang Team ([GitHub](https://github.com/yooz-lang))
+* **Developers:** Mohammad Hasan Farrahi ([mohammad.hfarrahi@gmail.com]())
+* **Team:** Yooz-lang Team ([GitHub](https://github.com/yooz-lang))
 * **Website:** [http://yooz.run](http://yooz.run)
 * **Repository:** [Yooz-lang on GitHub](https://github.com/yooz-lang/yooz-engine)
