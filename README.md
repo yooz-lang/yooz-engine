@@ -97,6 +97,6 @@ Built with efficiency and scalability in mind, `Yooz` is a perfect solution for 
 | `--version`     | Displays the installed version of `yooz`.                                                |
 You can find `Yooz` documentation, [Here](http://yooz.run/yooz.pdf).
 
-## **Getting Involved
+## **Getting Involved**
 We welcome contributions! Whether it’s reporting bugs, improving documentation, or adding features, feel free to [open an issue](https://github.com/yooz-lang/yooz-engine/issues/new/choose) or [fork and submit a pull request](https://github.com/yooz-lang/yooz-engine/fork) on GitHub.
 
