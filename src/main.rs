@@ -11,7 +11,7 @@ fn main() {
         return;
     }
     let command: Vec<String> = parse_query(&args[1]);
-    match args[1].as_str() {
+    match args[1].to_lowercase().as_str() {
         "help" | "-h" | "--help" => print_help(),
         "--version" | "-v" => {
             println!("yooz version 0.1.0");
